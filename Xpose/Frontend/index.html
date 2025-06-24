@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPOSE - Digital Risk Scanner</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <h2>Audit Your Cyber Vulnerabilities</h2>
+    <form id="Xpose">
+        <div class="form-group">
+            <h3>Personal Information</h3>
+            <div class="input-group">
+              <label for="email">Email*:</label>
+              <input type="email" id="email" required placeholder="user@example.com">
+            </div>
+            <div class="input-group">
+              <label for="fullName">Full Name:</label>
+              <input type="text" id="fullName" placeholder="Optional">
+            </div>
+            <div class="input-group">
+              <label for="domain">Primary Domain:</label>
+              <input type="text" id="domain" placeholder="example.com">
+              <small>Optional - Your personal or work domain for deeper analysis</small>
+            </div>
+            <div class="input-group">
+              <label for="dob">Date of Birth:</label>
+              <input type="date" id="dob">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <h3>Digital Footprint</h3>
+            <div class="input-group">
+              <label for="platforms">Platforms Used*:</label>
+              <select id="platforms" multiple>
+                <option value="github">GitHub</option>
+                <option value="twitter">Twitter</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="reddit">Reddit</option>
+              </select>
+              <small>Hold Ctrl/Cmd to select multiple</small>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <h3>Security Practices</h3>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="publicProfiles">
+              <label for="publicProfiles">My social profiles are public</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="reusedPasswords">
+              <label for="reusedPasswords">I reuse passwords across sites</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="twoFactorAuth">
+              <label for="twoFactorAuth">I use two-factor authentication (2FA) on important accounts</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="passwordManager">
+              <label for="passwordManager">I use a password manager</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="dataBreachExposure">
+              <label for="dataBreachExposure">I've been notified that my data appeared in breaches</label>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <h3>Online Behavior</h3>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="geoTagging">
+              <label for="geoTagging">I frequently share location-tagged posts/photos</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="personalInfoPosts">
+              <label for="personalInfoPosts">I sometimes post personal information (address, phone, etc.)</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="workInfoShared">
+              <label for="workInfoShared">I share details about my workplace/job online</label>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <h3>Technical Security</h3>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="vpnUse">
+              <label for="vpnUse">I regularly use a VPN for browsing</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="osUpdates">
+              <label for="osUpdates">I keep my operating system and apps updated</label>
+            </div>
+            <div class="input-group checkbox-group">
+              <input type="checkbox" id="backupData">
+              <label for="backupData">I maintain regular backups of important data</label>
+            </div>
+        </div>
+        
+        <button type="submit" id="submitBtn">
+            Scan My Exposure
+            <span id="spinner" style="display:none;"> ⏳</span>
+        </button>
+
+	            <div id="error-display" class="error-message"></div>
+
+    </form>
+    <script src="script.js"></script>
+</body>
+</html>

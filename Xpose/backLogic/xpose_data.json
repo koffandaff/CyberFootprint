@@ -1,0 +1,23 @@
+{
+  "email": "koffandaff@gmail.com",
+  "fullName": "Dhruvil",
+  "domain": "webrcticomp.wixsite.com",
+  "dob": "2016-02-21",
+  "platforms": [
+    "instagram",
+    "facebook",
+    "linkedin",
+    "reddit"
+  ],
+  "publicProfiles": true,
+  "reusedPasswords": true,
+  "twoFactorAuth": false,
+  "passwordManager": true,
+  "dataBreachExposure": false,
+  "geoTagging": true,
+  "personalInfoPosts": true,
+  "workInfoShared": true,
+  "vpnUse": true,
+  "osUpdates": true,
+  "backupData": true
+}

@@ -1,0 +1,95 @@
+#!/bin/bash
+export PATH="$HOME/.local/bin:$PATH"
+
+# Koffan Banner
+echo -e "\033[1;34m
+  ██╗  ██╗ ██████╗ ███████╗███████╗ █████╗ ███╗   ██╗
+  ██║ ██╔╝██╔═══██╗██╔════╝██╔════╝██╔══██╗████╗  ██║
+  █████╔╝ ██║   ██║█████╗  █████╗  ███████║██╔██╗ ██║
+  ██╔═██╗ ██║   ██║██╔══╝  ██╔══╝  ██╔══██║██║╚██╗██║
+  ██║  ██╗╚██████╔╝██║     ██║     ██║  ██║██║ ╚████║
+  ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝
+  UsernameRipper v2.0 | By Koffan
+\033[0m"
+
+# Create reports directory
+mkdir -p "./username_reports"
+
+# Generate report ID (first 3 chars of username + random 5-char)
+username_prefix=$(echo "$1" | head -c 3 | tr '[:upper:]' '[:lower:]')
+random_id=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1)
+report_id="${username_prefix}${random_id}"
+
+# Input handling
+username="$1"
+domain="${2:-$(whois $(hostname) | grep -i 'domain:' | head -1 | awk '{print $2}')}"
+
+# Main scan function
+{
+  echo "=== USERNAME REPORT: $username ==="
+  echo "Report ID: $report_id"
+  echo "Timestamp: $(date)"
+  
+  # Sherlock scan (fast mode)
+  echo -e "\n=== PLATFORM PRESENCE ==="
+  sherlock "$username" --timeout 10 --print-found 2>/dev/null | awk '
+    /\[\+\]/ {print "[+] " $2}
+    /\[\-\]/ {print "[-] " $2}' | sort
+  
+  # Whatsmyname scan (alternative)
+  echo -e "\n=== WEB PRESENCE ==="
+  python3 whatsmyname.py -u "$username" --sites all 2>/dev/null | grep -v "ERROR" | awk '
+    /FOUND/ {print "[+] " $1}
+    /NOT FOUND/ {print "[-] " $1}'
+  
+  # Email associations
+  echo -e "\n=== EMAIL ASSOCIATIONS ==="
+  holehe "$username*@$domain" --only-used 2>/dev/null | awk '
+    /[+]/ {print "[+] " $1}
+    /[-]/ {print "[-] " $1}'
+  
+  # Domain connections
+  echo -e "\n=== DOMAIN CONNECTIONS ==="
+  theHarvester -d "$domain" -b all -l 100 2>/dev/null | grep -i "$username" | while read line; do
+    echo "[*] $line"
+  done
+
+} > "/tmp/${report_id}.tmp"
+
+# Generate final report
+report_path="./username_reports/${report_id}.txt"
+{
+  cat "/tmp/${report_id}.tmp"
+  
+  # Risk assessment
+  found_count=$(grep -c "\[+\]" "/tmp/${report_id}.tmp")
+  echo -e "\n=== RISK ASSESSMENT ==="
+  echo "Platforms Found: $found_count"
+  
+  if [ $found_count -gt 15 ]; then
+    echo "Risk Level: Critical"
+    echo "Recommendation: Immediate username change for sensitive accounts"
+  elif [ $found_count -gt 8 ]; then
+    echo "Risk Level: High"
+    echo "Recommendation: Review all found accounts' privacy settings"
+  else
+    echo "Risk Level: Normal"
+    echo "Recommendation: Regular monitoring suggested"
+  fi
+  
+  echo -e "\n=== SCAN COMPLETE ==="
+} > "$report_path"
+
+# Cleanup and output
+rm "/tmp/${report_id}.tmp" 2>/dev/null
+
+# Export variables
+export USERNAME_RIP_ID="$report_id"
+export USERNAME_RIP_PATH="$report_path"
+export USERNAME_RIP_SCORE="$found_count"
+
+echo -e "\n${GREEN}Report saved to: ${CYAN}$report_path${NC}"
+echo -e "${BLUE}To use these variables in other scripts:${NC}"
+echo -e "export USERNAME_RIP_ID=\"$report_id\""
+echo -e "export USERNAME_RIP_PATH=\"$report_path\""
+echo -e "export USERNAME_RIP_SCORE=\"$found_count\""

@@ -1,0 +1,127 @@
+#!/bin/bash
+
+export PATH="$HOME/.local/bin:$PATH"
+
+echo -e "\033[1;34m
+  ██╗  ██╗ ██████╗ ███████╗███████╗ █████╗ ███╗   ██╗
+  ██║ ██╔╝██╔═══██╗██╔════╝██╔════╝██╔══██╗████╗  ██║
+  █████╔╝ ██║   ██║█████╗  █████╗  ███████║██╔██╗ ██║
+  ██╔═██╗ ██║   ██║██╔══╝  ██╔══╝  ██╔══██║██║╚██╗██║
+  ██║  ██╗╚██████╔╝██║     ██║     ██║  ██║██║ ╚████║
+  ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝
+  EmailRipper v2.0 | By Koffan
+\033[0m"
+
+# Check inputs
+if [ -z "$1" ]; then
+    echo -e "\033[1;31mUsage: ./emailripping <email> [domain]\033[0m"
+    echo -e "\033[1;33mExample: ./emailripping test@gmail.com google.com\033[0m"
+    exit 1
+fi
+
+# Create reports directory if it doesn't exist
+mkdir -p "./reports"
+
+# Generate report ID (first 3 chars of email + sequential 3-digit number)
+email_prefix=$(echo "$1" | cut -d'@' -f1 | head -c 3 | tr '[:upper:]' '[:lower:]')
+counter_file="./reports/.counter"
+
+# Initialize or read counter
+if [ ! -f "$counter_file" ]; then
+    echo "0" > "$counter_file"
+fi
+counter=$(cat "$counter_file")
+counter=$((counter + 1))
+[ $counter -gt 999 ] && counter=1  # Reset if exceeds 999
+printf -v padded_counter "%03d" "$counter"
+echo "$counter" > "$counter_file"
+
+report_id="${email_prefix}${padded_counter}"
+
+# Input handling
+email="$1"
+domain="${2:-$(echo "$email" | cut -d'@' -f2)}"
+
+# Generate compact report
+{
+  # Header
+  echo "=== START EMAIL REPORT ==="
+  echo "email: $email"
+  echo "domain: $domain"
+  echo "report_id: $report_id"
+  
+  # Account registrations
+  echo "=== ACCOUNT REGISTRATIONS ==="
+  holehe "$email" --only-used 2>/dev/null | awk '
+    /[+]/ {print "registered: " $1}
+    /[-]/ {print "not_registered: " $1}'
+  
+  # Breach data
+  echo "=== BREACHES ==="
+  h8mail -t "$email" 2>/dev/null | awk '
+    /\[\+\]/ {print "breach: " $3}
+    /\[!\]/ {print "clean: true"}'
+  
+  # Domain info
+  echo "=== DOMAIN DATA ==="
+  theHarvester -d "$domain" -b dnsdumpster -l 100 2>/dev/null | awk '
+    /^[a-zA-Z0-9]/ {print "subdomain: " $0}
+    /@/ && !/theHarvester/ {print "domain_email: " $0}'
+} > "/tmp/${report_id}.tmp"
+
+# Calculate risk score
+platforms=$(grep -c "registered:" "/tmp/${report_id}.tmp")
+breaches=$(grep -c "breach:" "/tmp/${report_id}.tmp")
+subdomains=$(grep -c "subdomain:" "/tmp/${report_id}.tmp")
+emailscore=$((breaches*10 + platforms*3 + subdomains*1))
+
+# Generate final report with risk assessment
+report_path="./reports/${report_id}.txt"
+{
+  cat "/tmp/${report_id}.tmp"
+  echo "=== RISK ASSESSMENT ==="
+  echo "breach_count: $breaches"
+  echo "platform_count: $platforms"
+  echo "subdomain_count: $subdomains"
+  echo "risk_score: $emailscore"
+  
+  # Recommendations based on score
+  if [ $emailscore -gt 50 ]; then
+    echo "risk_level: critical"
+    echo "recommendations: Change all passwords immediately, enable 2FA everywhere, monitor financial accounts"
+  elif [ $emailscore -gt 25 ]; then
+    echo "risk_level: high" 
+    echo "recommendations: Change reused passwords, review social media settings, check breach details"
+  else
+    echo "risk_level: low"
+    echo "recommendations: Regular security maintenance recommended"
+  fi
+  echo "=== END REPORT ==="
+} > "$report_path"
+
+# Cleanup
+rm "/tmp/${report_id}.tmp" 2>/dev/null
+
+# Export variables for use in other scripts
+export EMAIL_RIPPING_REPORT_ID="$report_id"
+export EMAIL_RIPPING_REPORT_PATH="$report_path"
+export EMAIL_RIPPING_SCORE="$emailscore"
+export EMAIL_RIPPING_EMAIL="$email"
+export EMAIL_RIPPING_DOMAIN="$domain"
+
+# Create a sourceable file with all variables
+variables_file="./reports/${report_id}.vars"
+{
+  echo "export EMAIL_RIPPING_REPORT_ID=\"$report_id\""
+  echo "export EMAIL_RIPPING_REPORT_PATH=\"$report_path\""
+  echo "export EMAIL_RIPPING_SCORE=\"$emailscore\""
+  echo "export EMAIL_RIPPING_EMAIL=\"$email\""
+  echo "export EMAIL_RIPPING_DOMAIN=\"$domain\""
+  echo "export EMAIL_RIPPING_RECOMMENDATIONS=\"$(grep "^recommendations:" "$report_path" | cut -d':' -f2-)\""
+} > "$variables_file"
+
+echo -e "${GREEN}Report generated with ID: ${CYAN}$report_id${NC}"
+echo -e "${BLUE}Report saved to: ${CYAN}$report_path${NC}"
+echo -e "${YELLOW}Variables saved to: ${CYAN}$variables_file${NC}"
+echo -e "\n${PURPLE}To use these variables in another script:${NC}"
+echo -e "source \"$variables_file\""

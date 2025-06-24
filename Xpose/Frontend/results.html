@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPOSE Results</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Score Display */
+        .score-container {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .score-card {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        #osint-score { background: #e3f2fd; }
+        #form-score { background: #fff8e1; }
+        #total-score { 
+            background: #e8f5e9; 
+            font-weight: bold;
+        }
+        
+        /* Risk Colors */
+        .risk-critical { color: #ff4444; }
+        .risk-high { color: #ff6d00; }
+        .risk-medium { color: #ffbb33; }
+        .risk-low { color: #00C851; }
+        
+        /* Reports */
+        pre {
+            white-space: pre-wrap;
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        body.dark pre {
+            background: #252525;
+            color: #e0e0e0;
+        }
+        
+        /* Loading States */
+        .loading {
+            animation: pulse 1.5s infinite;
+            font-style: italic;
+            color: #666;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        /* Error Display */
+        .error-message {
+            color: #ff4444;
+            background: #ffeeee;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <h1>Your Security Report</h1>
+        
+        <div id="metadata">
+            <p>Scan ID: <span id="scan-id">Loading...</span></p>
+            <p>Email: <span id="scan-email">Loading...</span></p>
+            <p>Date: <span id="scan-date">Loading...</span></p>
+        </div>
+        
+        <div class="score-container">
+            <div id="osint-score" class="score-card">
+                <h3>OSINT Risk</h3>
+                <div id="osint-score-value" class="loading">-</div>
+            </div>
+            <div id="form-score" class="score-card">
+                <h3>Form Risk</h3>
+                <div id="form-score-value" class="loading">-</div>
+            </div>
+            <div id="total-score" class="score-card">
+                <h3>Total Risk</h3>
+                <div id="total-score-value" class="loading">-</div>
+            </div>
+        </div>
+        
+        <div id="error-display" class="error-message" style="display: none;"></div>
+        
+        <div id="recommendations" class="report-section">
+            <h2>Recommendations</h2>
+            <div id="rec-content" class="loading">Loading recommendations...</div>
+        </div>
+        
+        <div id="email-report" class="report-section">
+            <h2>Email Analysis</h2>
+            <pre id="email-content" class="loading">Loading email report...</pre>
+        </div>
+        
+        <div id="username-report" class="report-section">
+            <h2>Username Analysis</h2>
+            <pre id="username-content" class="loading">Loading username report...</pre>
+        </div>
+    </div>
+
+    <script>
+        // Form Scoring Engine
+        function calculateFormScore(formData) {
+            let score = 0;
+            
+            // Security Practices (50%)
+            if (formData.publicProfiles) score += 15;
+            if (formData.reusedPasswords) score += 20;
+            if (!formData.twoFactorAuth) score += 10;
+            if (!formData.passwordManager) score += 5;
+            
+            // Online Behavior (30%)
+            if (formData.geoTagging) score += 10;
+            if (formData.personalInfoPosts) score += 10;
+            if (formData.workInfoShared) score += 10;
+            
+            // Technical Security (20%)
+            if (!formData.vpnUse) score += 5;
+            if (!formData.osUpdates) score += 10;
+            if (!formData.backupData) score += 5;
+            
+            return Math.min(100, score);
+        }
+        
+        // Generate recommendations based on both scores
+        function generateRecommendations(osintScore, formScore, formData) {
+            const recommendations = [];
+            const totalScore = Math.max(osintScore, formScore);
+            
+            // Critical recommendations
+            if (totalScore >= 70) {
+                recommendations.push("🔴 Change all passwords immediately");
+                recommendations.push("🔴 Enable two-factor authentication everywhere");
+            } 
+            // High risk recommendations
+            else if (totalScore >= 50) {
+                recommendations.push("🟠 Change any reused passwords");
+                recommendations.push("🟠 Review social media privacy settings");
+            }
+            
+            // Form-specific recommendations
+            if (formData.reusedPasswords) {
+                recommendations.push("🟡 Use a password manager to generate unique passwords");
+            }
+            if (!formData.twoFactorAuth) {
+                recommendations.push("🟡 Enable two-factor authentication on important accounts");
+            }
+            if (formData.publicProfiles) {
+                recommendations.push("🟡 Consider making social profiles private");
+            }
+            
+            // OSINT-specific recommendations
+            if (osintScore >= 40) {
+                recommendations.push("🟠 Check haveibeenpwned.com for breaches");
+            }
+            
+            return recommendations.length > 0 
+                ? recommendations 
+                : ["🟢 No critical security issues detected"];
+        }
+        
+        // Format score display with color
+        function displayScore(score, elementId) {
+            const element = document.getElementById(elementId);
+            element.textContent = `${score}/100`;
+            element.classList.remove('loading');
+            
+            if (score >= 70) element.classList.add('risk-critical');
+            else if (score >= 50) element.classList.add('risk-high');
+            else if (score >= 30) element.classList.add('risk-medium');
+            else element.classList.add('risk-low');
+        }
+        
+        // Main report loader
+        async function loadReport() {
+            const scanId = new URLSearchParams(window.location.search).get('scan_id');
+            
+            if (!scanId) {
+                showError("No scan ID provided in URL");
+                return;
+            }
+            
+            try {
+                // Fetch scan data
+                const response = await fetch(`http://localhost:5000/status/${scanId}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to load scan data");
+                }
+                
+                // Handle pending scans
+                if (!data.ready) {
+                    document.getElementById('rec-content').textContent = 
+                        "Scan still processing...";
+                    setTimeout(loadReport, 3000);
+                    return;
+                }
+                
+                // Update metadata
+                document.getElementById('scan-id').textContent = scanId;
+                document.getElementById('scan-email').textContent = data.email || "N/A";
+                document.getElementById('scan-date').textContent = 
+                    data.created_at ? new Date(data.created_at).toLocaleString() : "N/A";
+                
+                // Parse form data
+                let formData = {};
+                try {
+                    formData = JSON.parse(data.form_data || "{}");
+                } catch (e) {
+                    console.warn("Failed to parse form data:", e);
+                }
+                
+                // Calculate scores
+                const osintScore = data.score || 0;
+                const formScore = calculateFormScore(formData);
+                const totalScore = Math.max(osintScore, formScore);
+                
+                // Display scores
+                displayScore(osintScore, 'osint-score-value');
+                displayScore(formScore, 'form-score-value');
+                displayScore(totalScore, 'total-score-value');
+                
+                // Generate and display recommendations
+                const recommendations = generateRecommendations(
+                    osintScore, 
+                    formScore, 
+                    formData
+                );
+                
+                const recElement = document.getElementById('rec-content');
+                recElement.innerHTML = recommendations.map(r => 
+                    `<li>${r}</li>`
+                ).join('');
+                recElement.classList.remove('loading');
+                
+                // Display reports
+                const displayContent = (elementId, content) => {
+                    const element = document.getElementById(elementId);
+                    element.textContent = content || "Report not available";
+                    element.classList.remove('loading');
+                };
+                
+                displayContent('email-content', data.reports?.email);
+                displayContent('username-content', data.reports?.username);
+                
+            } catch (error) {
+                console.error("Error loading report:", error);
+                showError(error.message);
+            }
+        }
+        
+        function showError(message) {
+            const errorElement = document.getElementById('error-display');
+            errorElement.textContent = `Error: ${message}`;
+            errorElement.style.display = 'block';
+        }
+        
+        // Start loading when page loads
+        document.addEventListener('DOMContentLoaded', loadReport);
+    </script>
+</body>
+</html>
